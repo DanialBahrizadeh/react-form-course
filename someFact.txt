@@ -1,0 +1,1 @@
+react-form control does not render the component each time you enter a word in the input so it's better in Performance
