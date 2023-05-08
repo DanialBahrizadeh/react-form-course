@@ -1,6 +1,8 @@
-import type { FC } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { FC, useEffect, useState } from "react";
+import { useForm, useFieldArray, FieldErrors } from "react-hook-form";
 import { DevTool } from "@hookform/devtools";
+
+let renderTime = 0;
 
 type FormData = {
   username: string;
@@ -12,9 +14,12 @@ type FormData = {
   };
   phoneNumbers: string[];
   phNumbers: { number: string }[];
+  age: number;
+  dob: Date;
 };
 
 const YoutubeForm: FC = () => {
+  renderTime++;
   console.log("it did rerender");
   // the object is optional and you can just write useForm()
   // you don't need a generic type if you set a default value but if you didn't the type is requare for for the handleSubmit function
@@ -30,6 +35,8 @@ const YoutubeForm: FC = () => {
       },
       phoneNumbers: ["", ""],
       phNumbers: [{ number: "" }],
+      age: 0,
+      dob: new Date(),
     },
     // defaultValues: async () => {
     //   const response = await fetch(
@@ -44,8 +51,34 @@ const YoutubeForm: FC = () => {
     // },
   });
 
-  const { register, control, handleSubmit, formState } = form;
-  const { errors } = formState;
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState,
+    watch,
+    getValues,
+    setValue,
+    reset,
+  } = form;
+
+  const { errors, isValid, isSubmitting, isSubmitSuccessful } = formState;
+
+  //there are some functions that aren't that important there are about submiting and the state of the submit like isSibmited isSubmiting submitCount and other, the most important one I thing it's isSubmitting which tell you if the form is sumbiting
+  // but you still can use some of them like isSubmitSuccessful with other function like reset()
+  // its recommended to not use reset() in the onSubmit method but using reset() in useEffect with isSubmitSuccessful
+  useEffect(() => {
+    if (isSubmitSuccessful) {
+      reset();
+    }
+  }, [isSubmitSuccessful, reset]);
+
+  // the touched fields are by default false and will change to true when the user focus on the field and when he unfocus again.
+  // the dirty fileds are by default false and will change to true when the user modify the field btw if the user modifyed the field then rewrite the old value dirty will be false once again
+  // const {touchedFields, dirtyFields, isDirty } = formState;
+  // console.log({ touchedFields, dirtyFields });
+  // notes that there are isDirty to with chech if the form state is dirty or not
+
   //there are two ways to register the first one os destrucher the following keys from the register object and manuly put the value (read the comment inside the username input to understand)
   // how ever the better way is directly use the spread operator(...) behind the object and destrucher it inside the input element
   // const { name, ref, onChange, onBlur } = register("username");
@@ -58,9 +91,43 @@ const YoutubeForm: FC = () => {
   const onSubmit = (data: FormData) => {
     console.log(`Form submitted and the data is`, data);
   };
+  // you can use onError so its work if the submit didn't work btw the errors are the same of errors that come from formState
+  const onError = (errors: FieldErrors<FormData>) => {
+    console.log("you have errors", errors);
+  };
+
+  // you can also watch an array of inputs by using watch(['username', 'email']) and if you didn't pass anything and just said watch() it'll return the whole form object
+  // you can use the watch here like that:
+  // const watchUsername = watch("username");
+  // or in a better way by using the useEffect, its better becaue it won't rerender the page every time you enter something but it'll have always fresh data every time a user enter a word
+  useEffect(() => {
+    const sub = watch((value) => {
+      console.log(value);
+    });
+    return () => sub.unsubscribe();
+  }, [watch]);
+
+  // another good way to get value is using getValues() method which unlike watch method does not rerender the page every time you enter something other then that there are much a like
+  // you could use getValues("username") to get the value from a specific filed
+  const handleGetValue = () => {
+    console.log("the value are", getValues());
+  };
+
+  // as we all know if there are a get value there are a set value too
+  // the third argument aren't requare but if you didn't pass it it wont affect the touch and dirty state of the form and it won't validate the value you enterd
+  const handleSetValue = () => {
+    setValue("username", "I'am BATMAN", {
+      shouldValidate: true,
+      shouldTouch: true,
+      shouldDirty: true,
+    });
+  };
+
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <h1>this page has been rendered {renderTime} time</h1>
+      {/* <h2>Watched value: {JSON.stringify(watchUsername)}</h2> */}
+      <form onSubmit={handleSubmit(onSubmit, onError)} noValidate>
         <div className="form-controle">
           <label htmlFor="username">Username</label>
           <input
@@ -119,6 +186,15 @@ const YoutubeForm: FC = () => {
                   }
                   return true;
                 },
+
+                // this is have you use async validation but be aware that if you use async validation the isValid method will be false
+                // emailAvailable: async (filedValue) => {
+                //   const response = await fetch(
+                //     `https://jsonplaceholder.typicode.com/users?email=${filedValue}`
+                //   );
+                //   const data: [] = await response.json();
+                //   return data.length === 0 || "the Email is already exists";
+                // },
               },
 
               // validate: (filedValue) => {
@@ -154,6 +230,8 @@ const YoutubeForm: FC = () => {
             type="text"
             id="twitter"
             {...register("social.twitter", {
+              // if the disabled is true then the filed will be disabled and the user won't be able to enter anything and the value will be undefined and validation will be off
+              // disabled: watch("username") === "fucktwitter",
               required: "Sir i'm a big fan and I need your twitter account",
             })}
           />
@@ -233,8 +311,45 @@ const YoutubeForm: FC = () => {
             Add a number
           </button>
         </div>
+        <div className="form-controle">
+          <label htmlFor="age">age</label>
+          <input
+            type="number"
+            id="age"
+            {...register("age", {
+              // if you need the value to store as number like 20 insted of "20" you need add this property
+              valueAsNumber: true,
+              required: "Sir i'm a big fan and I need your facebook account",
+            })}
+          />
+          <p className="error">{errors.social?.facebook?.message}</p>
+        </div>
+        <div className="form-controle">
+          <label htmlFor="dob">Date of birth</label>
+          <input
+            type="date"
+            id="dob"
+            {...register("dob", {
+              // if you need the value to store as Date object then use this
+              valueAsDate: true,
+              required: "Sir i'm a big fan and I need your facebook account",
+            })}
+          />
+          <p className="error">{errors.social?.facebook?.message}</p>
+        </div>
 
-        <button>Submit</button>
+        <button type="submit" disabled={!isValid || isSubmitting}>
+          Submit
+        </button>
+        <button type="button" onClick={() => reset()}>
+          Reset
+        </button>
+        <button type="button" onClick={handleGetValue}>
+          get value
+        </button>
+        <button type="button" onClick={handleSetValue}>
+          Set the Username
+        </button>
       </form>
       <DevTool control={control} />
     </div>
